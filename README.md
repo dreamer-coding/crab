@@ -1,56 +1,77 @@
-# **Crab CLI**
+# **crabctl** — Blue Crab Data Center CLI
 
-**`crab`** is the official command-line interface for Blue CrabDB, a lightweight, portable key-value database designed for embedded systems, scripting environments, and efficient local storage. With a single executable and a suite of powerful subcommands, `crab` lets you insert, query, export, import, and manage `.crabdb` files directly from the terminal. Whether you're building automation scripts, logging sensor data, or managing configurations, `crab` offers a streamlined, shell-friendly experience with both structured and raw access modes via MyShell and NoShell. It’s small, fast, and designed to fit into your workflow like a natural extension of the UNIX philosophy.
+**`crabctl`** is the official command-line interface for managing the **Blue Crab Data Center**, a scalable network of Raspberry Pi nodes running the CrabDB engine. It acts as a unified interface to control, monitor, and interact with `crabd` daemons over SSH, TCP, or local execution.
 
-### 🧰 `crab` CLI Command Reference
-
-| Command                         | Description                                               |
-|---------------------------------|-----------------------------------------------------------|
-| `crab --version`                | Show the current version of the CLI                       |
-| `crab --help`                   | Show help information and command usage                   |
-| `crab get <db> <key>`           | Fetch the value for a given key                           |
-| `crab put <db> <key> <val>`     | Insert or update a key-value pair                         |
-| `crab del <db> <key>`           | Delete a key from the database                            |
-| `crab ls <db> [prefix]`         | List all keys, optionally filtered by prefix              |
-| `crab keys <db> <pattern>`      | Find keys by pattern (wildcard or regex)                  |
-| `crab grep <db> <query>`        | Search values for matching text                           |
-| `crab watch <db> <pattern>`     | Watch key changes in real-time like `tail -f`             |
-| `crab export <db>`              | Export database contents (e.g., to JSON/CSV)              |
-| `crab import <db>`              | Import entries from a file (JSON/CSV)                     |
-| `crab diff <a.crab> <b.crab>`   | Show differences between two `.crabdb` files              |
-| `crab backup <db>`              | Backup the database with a timestamped file               |
-| `crab compact <db>`             | Optimize the database file by removing obsolete data      |
-| `crab pipe <db> <mode>`         | Read/write via stdin/stdout for shell scripting           |
-| `crab sh <db> [--as <mode>]`    | Launch MyShell by default, or NoShell with `--as noshell` |
+With a single CLI tool, you can **scan nodes**, **query distributed databases**, **deploy configs**, **sync data**, and even launch scripted automations via the `spider` command. Designed using the Fossil SDK and built with Meson, `crabctl` is lightweight, modular, and ideal for embedded systems and distributed local-first applications.
 
 ---
 
-### 🧪 Examples:
+## 🔧 `crabctl` Command Reference
+
+| Command                          | Description                                                                 |
+|----------------------------------|-----------------------------------------------------------------------------|
+| `crabctl --help`                 | Show usage and available subcommands                                        |
+| `crabctl --version`              | Prints the current version number                                           |
+| `crabctl scan <node>`            | Discover active `crabd` nodes on the network or via config                  |
+| `crabctl status`                 | Show real-time status and health of all known nodes                         |
+| `crabctl info <node>`            | View detailed diagnostics, system info, and CrabDB metadata                 |
+| `crabctl deploy`                 | Deploy configuration files or binaries to nodes via SSH                     |
+| `crabctl query`                  | Run queries against `.crabdb` files on remote nodes (MyShell or NoShell)    |
+| `crabctl exec`                   | Execute an arbitrary shell command remotely                                 |
+| `crabctl sync`                   | Synchronize a database from one node to others                              |
+| `crabctl logs`                   | View or tail logs from one or more nodes                                    |
+| `crabctl spider <script>`        | Execute a Spider script for orchestration or automation                     |
+| `crabctl push <db> <node>`       | Push a local `.crabdb` file to a remote node                                |
+| `crabctl pull <db> <node>`       | Fetch a remote `.crabdb` file to your local system                          |
+| `crabctl startup <node>`         | Start the `crabd` service on all nodes or a specific node                   |
+| `crabctl restart <node>`         | Restart the `crabd` service on a remote node                                |
+| `crabctl shutdown <node>`        | Gracefully shut down a remote node                                          |
+| `crabctl metrics`                | Collect and display metrics from all nodes (CPU, memory, I/O, CrabDB stats) |
+| `crabctl ping <node>`            | Ping a node to test connectivity and latency                                |
+| `crabctl set <key> <val>`        | Set a global config key-value (e.g. default timeout, retry limit)           |
+| `crabctl get <key>`              | Get a global config key                                                     |
+| `crabctl nodes add <host>`       | Add a new node to the managed set                                           |
+| `crabctl nodes remove <host>`    | Remove a node from the managed set                                          |
+| `crabctl nodes list`             | List all configured or discovered nodes                                     |
+| `crabctl auth <node>`            | Authenticate with a remote node (e.g., via SSH key setup or token)          |
+
+---
+
+## 🕸️ `spider` — Automate the Crab
+
+The `spider` command runs **Spider Scripts**, a domain-specific language (DSL) designed to orchestrate multiple Crab nodes in sequence or parallel. Think of it as a shell + pipeline manager for your entire Pi-based infrastructure.
 
 ```sh
-# Get a value
-crab get my.crabdb user:001:name
+crabctl spider ./scripts/deploy_all.spider
+```
 
-# Add or update a value
-crab put my.crabdb user:001:name "Jellyfish"
+Spider scripts support logic, loops, conditions, and built-in commands like `connect`, `put`, `sync`, and `wait`.
 
-# Delete a key
-crab del my.crabdb user:001:name
+---
 
-# Interactive shell (default to MyShell)
-crab sh my.crabdb
+## ✨ Examples
 
-# Interactive shell with NoShell mode
-crab sh my.crabdb --as noshell
+```sh
+# Scan for nodes on LAN
+crabctl scan
 
-# Export to JSON
-crab export my.crabdb --format json > mydata.json
+# View system and CrabDB status from all nodes
+crabctl status
 
-# Import from CSV
-crab import my.crabdb --format csv < newdata.csv
+# Query a key using NoShell
+crabctl query --node pi4 --mode noshell --key logs/temp:today
 
-# Watch keys for changes
-crab watch my.crabdb "logs:*"
+# Deploy config to all nodes
+crabctl deploy --all --config crabd.conf
+
+# Execute a remote command
+crabctl exec --node pi7 "uptime"
+
+# Sync a database across all nodes
+crabctl sync --source pi1 --target-all --db config.crabdb
+
+# Run a spider script to do multi-step orchestration
+crabctl spider upgrade_nodes.spider
 ```
 
 ---
@@ -71,8 +92,8 @@ Ensure you have the following installed before starting:
 1. **Clone the Repository**:
 
     ```sh
-    git clone https://github.com/fossillogic/crab.git
-    cd crab
+    git clone https://github.com/fossillogic/crabctl.git
+    cd crabctl
     ```
 
 2. **Configure the Build**:
@@ -96,16 +117,16 @@ Ensure you have the following installed before starting:
 5. **Run the Project**:
 
     ```sh
-    crab
+    crabctl
     ```
 
 ## **Contributing**
 
-Interested in contributing? Please open pull requests or create issues on the [GitHub repository](https://github.com/fossillogic/crab).
+Interested in contributing? Please open pull requests or create issues on the [GitHub repository](https://github.com/fossillogic/crabctl).
 
 ## **Feedback and Support**
 
-For issues, questions, or feedback, open an issue on the [GitHub repository](https://github.com/fossillogic/crab/issues).
+For issues, questions, or feedback, open an issue on the [GitHub repository](https://github.com/fossillogic/crabctl/issues).
 
 ## **License**
 
